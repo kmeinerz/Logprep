@@ -1,6 +1,7 @@
 """Content getters provide a shared interface to get content from targets.
 They are returned by the GetterFactory.
 """
+
 import json
 import os
 import re
@@ -339,6 +340,7 @@ class FileGetter(Getter):
 @define(kw_only=True)
 class DataSharedPerTarget:
     """Contains data that is shared for getters with the same target"""
+
     cache: bytes = None
 
     scheduler: Scheduler = None
