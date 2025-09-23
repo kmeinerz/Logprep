@@ -711,19 +711,17 @@ output:
         assert config._scheduler.jobs, "not cancelled job"
         assert config.config_refresh_interval == 60, "should be None"
 
-    def test_reload_always_reloads(self, config_path, caplog):
+    def test_reload_does_not_reload_without_change(self, config_path, caplog):
         caplog.set_level("INFO")
         config = Configuration.from_sources([str(config_path)])
         config._metrics.number_of_config_refreshes = 0
         config._metrics.number_of_config_refresh_failures = 0
-        config.process_count = 99
         config_path.write_text(config.as_yaml())
-        config.process_count = 2
         config.reload()
-        assert "Successfully reloaded configuration" in caplog.text
-        assert config.process_count == 99
-        assert config._metrics.number_of_config_refreshes == 1, "config refresh"
-        assert config._metrics.number_of_config_refresh_failures == 0, "config refresh failure"
+        assert "Configuration didn't change." in caplog.text
+        assert config.process_count == 3
+        assert config._metrics.number_of_config_refreshes == 0, "no config refresh"
+        assert config._metrics.number_of_config_refresh_failures == 0, "no config refresh failure"
 
     def test_reload_logs_error_on_invalid_config(self, config_path, caplog):
         config = Configuration.from_sources([str(config_path)])
@@ -1010,15 +1008,6 @@ output:
         config.reload()
         assert len(config.pipeline) == 5
         assert config.pipeline[4]["new_processor"]["type"] == "field_manager"
-
-    def test_configurations_are_equal_if_version_is_equal(self):
-        config = Configuration.from_sources([path_to_config])
-        config2 = Configuration.from_sources([path_to_config])
-        assert config is not config2
-        assert config.version == config2.version
-        config.config_refresh_interval = 99
-        assert config.config_refresh_interval != config2.config_refresh_interval
-        assert config == config2
 
     @pytest.mark.parametrize(
         "testcase, mocked, side_effect, expected_error_message",
@@ -1395,24 +1384,38 @@ output:
             )
         )
 
-    def test_always_log_config_refresh_interval(self, config_path, caplog):
+    def test_log_config_refresh_interval_only_if_it_changes(self, config_path, caplog):
         caplog.set_level("INFO")
         config = Configuration.from_sources([str(config_path)])
         config.config_refresh_interval = 10
         config.reload()
-        assert "Successfully reloaded configuration" in caplog.text
-        assert "Config refresh interval is set to:" in caplog.text
+        assert "Configuration didn't change." in caplog.text
+        assert "Config refresh interval is set to:" not in caplog.text
+
+    def test_config_refresh_interval_none_does_not_register_as_change(self, config_path, caplog):
+        caplog.set_level("INFO")
+        config = Configuration.from_sources([str(config_path)])
+        config.config_refresh_interval = None  # Store None in file
+        config_path.write_text(config.as_yaml())
+        config.config_refresh_interval = 10  # Set current interval to 10
+        config.reload()
+        assert "Configuration didn't change" in caplog.text
+        assert config.config_refresh_interval == 10, "should not be changed to None"
 
     def test_config_refresh_interval_cant_be_set_to_none(self, config_path, caplog):
         caplog.set_level("INFO")
         config = Configuration.from_sources([str(config_path)])
         config.config_refresh_interval = None
+        config.version = 2  # Changed to trigger reload
         config_path.write_text(config.as_yaml())
         config.config_refresh_interval = 10
+        config.version = 1
         config.reload()
         assert "Successfully reloaded configuration" in caplog.text
-        assert "Config refresh interval is set to: 10 seconds" in caplog.text
+        assert "Configuration version: 2" in caplog.text
+        assert f"Config refresh interval is set to: {config.config_refresh_interval}" in caplog.text
         assert config.config_refresh_interval == 10, "should not be changed to None"
+        config.reload()
 
     @responses.activate
     def test_log_config_refresh_interval_change_independent_of_config_changes(
