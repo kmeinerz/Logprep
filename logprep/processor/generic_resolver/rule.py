@@ -119,7 +119,7 @@ if the value in :code:`to_resolve` begins with number, ends with numbers and con
 import re
 from functools import cached_property
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, List, Tuple, Union
 
 from attrs import define, field, validators
 
@@ -181,37 +181,24 @@ class GenericResolverRule(FieldManagerRule):
         ignore_case: Optional[str] = field(validator=validators.instance_of(bool), default=False)
         """(Optional) Ignore case when matching resolve values. Defaults to :code:`False`."""
 
-        additions: dict = field(default={}, eq=False, init=False)
-        """Contains a dictionary of field names and values that should be added."""
-
         @property
-        def _file_path(self):
+        def _file_path(self) -> str:
             """Returns the file path"""
             return self.resolve_from_file.get("path")
 
         def __attrs_post_init__(self):
             if self._file_path:
-                getter = GetterFactory.from_string(self._file_path)
-                if isinstance(getter, RefreshableGetter):
-                    getter.add_callback(self._add_from_path)
+                GetterFactory.from_string(self._file_path).add_callback(self._add_from_path)
                 self._add_from_path()
 
         def _add_from_path(self):
             self._raise_if_pattern_is_invalid()
             self._raise_if_file_does_not_exist()
-            additions = self._get_additions()
+            additions = GetterFactory.from_string(self._file_path).get_yaml()
+            self._raise_if_additions_are_invalid(additions)
             if self.ignore_case:
                 additions = {key.upper(): value for key, value in additions.items()}
-            self.additions = additions
-
-        def _get_additions(self) -> dict:
-            try:
-                additions = GetterFactory.from_string(self._file_path).get_dict()
-            except ValueError as error:
-                raise InvalidConfigurationError(
-                    f"Error loading additions from '{self._file_path}': {error}"
-                ) from error
-            return additions
+            self.resolve_from_file["additions"] = additions
 
         def _raise_if_pattern_is_invalid(self):
             if "?P<mapping>" not in self.resolve_from_file["pattern"]:
@@ -223,6 +210,13 @@ class GenericResolverRule(FieldManagerRule):
             if not (self._file_path.startswith("http") or Path(self._file_path).is_file()):
                 raise InvalidConfigurationError(
                     f"Additions file '{self._file_path}' not found! (Rule ID: '{self.id}')",
+                )
+
+        def _raise_if_additions_are_invalid(self, additions: dict):
+            if not isinstance(additions, dict):
+                raise InvalidConfigurationError(
+                    f"Additions file '{self._file_path}' must be a dictionary "
+                    f"with string values! (Rule ID: '{self.id}')",
                 )
 
     @property

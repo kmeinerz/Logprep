@@ -9,6 +9,9 @@ from unittest.mock import patch
 import pytest
 import responses
 
+from logprep.util.defaults import ENV_NAME_LOGPREP_GETTER_CONFIG
+from logprep.util.getter import HttpGetter
+
 from logprep.factory_error import InvalidConfigurationError
 from logprep.processor.generic_resolver.rule import GenericResolverRule
 from logprep.util.defaults import ENV_NAME_LOGPREP_GETTER_CONFIG
@@ -258,11 +261,11 @@ class TestGenericResolverRule:
         with patch.dict("os.environ", mock_env):
             scheduler = HttpGetter(protocol="http", target=target).scheduler
             rule = GenericResolverRule.create_from_dict(rule_definition)
-            assert rule.additions == from_http_1
+            assert rule.resolve_from_file["additions"] == from_http_1
             HttpGetter.refresh()
-            assert rule.additions == from_http_1
+            assert rule.resolve_from_file["additions"] == from_http_1
             scheduler.run_all()
-            assert rule.additions == from_http_2
-            assert rule.additions == from_http_2
+            assert rule.resolve_from_file["additions"] == from_http_2
+            assert rule.resolve_from_file["additions"] == from_http_2
             scheduler.run_all()
-            assert rule.additions == from_http_3
+            assert rule.resolve_from_file["additions"] == from_http_3
