@@ -19,7 +19,7 @@ from requests import Response
 from attrs import define, field, validators
 from requests import Response
 from schedule import Scheduler
-from starlette import status
+from starlette import status  # type: ignore
 
 from logprep.abc.exceptions import LogprepException
 from logprep.abc.getter import Getter, yaml
