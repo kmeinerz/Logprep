@@ -352,6 +352,8 @@ class DataSharedPerTarget:
 
     callbacks: list = []
 
+    refreshing: bool = False
+
 
 @define(kw_only=True)
 class HttpGetter(Getter):
@@ -528,11 +530,16 @@ class HttpGetter(Getter):
         return self.cache
 
     def _refresh(self) -> None:
+        if self.shared.refreshing:
+            return
+        self.shared.refreshing = True
         not_modified = self._update_cache()
         if not_modified:
+            self.shared.refreshing = False
             return
         for callback in self._callbacks:
             callback["function"](*callback["args"], **callback["kwargs"])
+        self.shared.refreshing = False
 
     def _update_cache(self) -> bool:
         response = self._do_request()
