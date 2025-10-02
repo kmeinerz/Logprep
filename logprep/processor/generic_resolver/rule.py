@@ -181,6 +181,9 @@ class GenericResolverRule(FieldManagerRule):
         ignore_case: Optional[str] = field(validator=validators.instance_of(bool), default=False)
         """(Optional) Ignore case when matching resolve values. Defaults to :code:`False`."""
 
+        additions: dict = field(default={}, eq=False, init=False)
+        """Contains a dictionary of field names and values that should be added."""
+
         @property
         def _file_path(self):
             """Returns the file path"""
@@ -198,7 +201,7 @@ class GenericResolverRule(FieldManagerRule):
             self._raise_if_additions_are_invalid(additions)
             if self.ignore_case:
                 additions = {key.upper(): value for key, value in additions.items()}
-            self.resolve_from_file["additions"] = additions
+            self.additions = additions
 
         def _raise_if_pattern_is_invalid(self):
             if "?P<mapping>" not in self.resolve_from_file["pattern"]:
