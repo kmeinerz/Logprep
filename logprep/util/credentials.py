@@ -528,6 +528,7 @@ class OAuth2TokenCredentials(Credentials):
         """request session with Bearer Token set in the authorization header"""
         session = super().get_session()
         session.headers["Authorization"] = f"Bearer {self.token}"
+        session.headers["Authentication"] = f"Bearer {self.token}"
         return session
 
 

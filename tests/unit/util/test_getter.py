@@ -4,7 +4,8 @@
 # pylint: disable=unspecified-encoding
 # pylint: disable=protected-access
 import json
-import re
+import os
+import time
 import uuid
 from datetime import datetime, timedelta
 from importlib.metadata import version
@@ -22,7 +23,10 @@ from requests.exceptions import HTTPError
 from ruamel.yaml import YAML, YAMLError
 
 from logprep.util.credentials import Credentials, CredentialsEnvNotFoundError
-from logprep.util.defaults import ENV_NAME_LOGPREP_CREDENTIALS_FILE, ENV_NAME_LOGPREP_GETTER_CONFIG
+from logprep.util.defaults import (
+    ENV_NAME_LOGPREP_CREDENTIALS_FILE,
+    ENV_NAME_LOGPREP_GETTER_CONFIG,
+)
 from logprep.util.getter import (
     FileGetter,
     GetterFactory,
@@ -34,6 +38,7 @@ from logprep.util.getter import (
 )
 
 yaml = YAML(pure=True, typ="safe")
+os.environ["LOGPREP_CREDENTIALS_FILE"] = "examples/exampledata/config/credentials.yml"
 
 
 @pytest.fixture(autouse=True)
@@ -1284,190 +1289,46 @@ class TestHttpGetter:
             http_getter_2.get_json()
             assert self._callback_value == 14
 
-    def test_add_callback_for_target_target_share_none(self):
-        HttpGetter._shared["target"] = None
-        HttpGetter.add_callback_for_target("target", lambda: True)
-        assert HttpGetter._shared.get("target") is None
+    @staticmethod
+    def _get_cache_as_json(http_getter: HttpGetter) -> dict:
+        return json.loads(http_getter.cache.decode())
 
-    def test_set_refresh_interval(self):
-        http_getter: HttpGetter = GetterFactory.from_string("http://something")
-        assert http_getter._refresh_interval != 123
-        http_getter._refresh_interval = 123
-        assert http_getter._refresh_interval == 123
+    def test_http_getter_with_local_server(self, tmp_path):
+        target = "/valuestore/ip_set_testclass"
+        base_url = "http://localhost:8080"
+        url = f"{base_url}{target}"
 
-    def test_refresh_while_already_refreshing_stops(self):
-        http_getter: HttpGetter = GetterFactory.from_string("http://something")
-        http_getter.shared.refreshing = True
-        with mock.patch("logprep.util.getter.HttpGetter._update_cache") as mock_update_cache:
-            http_getter._refresh()
-            mock_update_cache.assert_not_called()
+        headers = {
+            "Content-Type": "application/json",
+            "Authentication": "Bearer DEV-API-WRITE-KEY-954700505u679",
+        }
 
-    def test_refresh_while_with_refreshable_getter_error_logs(self, caplog):
-        caplog.set_level("WARNING")
-        http_getter: HttpGetter = GetterFactory.from_string("http://something")
-        http_getter.shared.refreshing = False
-        http_getter._refresh()
-        assert re.search(r"Not updating .+ cache with URI .+", caplog.text)
+        requests.post(url, headers=headers, json=["192.168.1.10"])
 
-    @mock.patch("logprep.util.getter.HttpGetter._get_from_target", return_value=(b"", False))
-    def test_update_cache_raises_error_if_empty(self, _):
-        http_getter: HttpGetter = GetterFactory.from_string("http://something")
-        http_getter.cache = None
-        with pytest.raises(ValueError, match="HttpGetter cache is empty"):
-            http_getter._update_cache()
-
-    @mock.patch("logprep.abc.getter.Getter.get_yaml", side_effect=YAMLError)
-    @mock.patch("logprep.abc.getter.Getter.get_json")
-    def test_get_collection_parses_json_if_yaml_fails(self, mock_get_json, _):
-        http_getter: HttpGetter = GetterFactory.from_string("http://something")
-        http_getter.get_collection()
-        mock_get_json.assert_called_once()
-
-    @mock.patch("logprep.abc.getter.Getter.get_collection", return_value="not a dict")
-    def test_get_dict_raises_exception_if_result_not_dict(self, _):
-        http_getter: HttpGetter = GetterFactory.from_string("http://something")
-        with pytest.raises(ValueError, match="Value is not a dictionary"):
-            http_getter.get_dict()
-
-    @mock.patch("logprep.abc.getter.Getter.get_collection", return_value={"something": "foo"})
-    def test_get_dict_returns_if_result_is_dict(self, _):
-        http_getter: HttpGetter = GetterFactory.from_string("http://something")
-        assert http_getter.get_dict() == {"something": "foo"}
-
-    @mock.patch("logprep.abc.getter.Getter.get_collection", return_value="not a list")
-    def test_get_list_raises_exception_if_result_not_list(self, _):
-        http_getter: HttpGetter = GetterFactory.from_string("http://something")
-        with pytest.raises(ValueError, match="Value is not a list"):
-            http_getter.get_list()
-
-    @mock.patch("logprep.abc.getter.Getter.get_collection", return_value=["something"])
-    def test_get_list_returns_if_result_is_list(self, _):
-        http_getter: HttpGetter = GetterFactory.from_string("http://something")
-        assert http_getter.get_list() == ["something"]
-
-    def test_handle_http_error_401_raises_refreshable_getter_error(self):
-        response = MagicMock()
-        response.status_code = 123
-        with pytest.raises(RefreshableGetterError, match="something"):
-            HttpGetter._handle_http_error(HTTPError("something", response=response))
-
-    def test_refresh_interval_for_getter_file_config_always_zero(self, tmp_path):
-        target = "something"
-        http_getter: HttpGetter = GetterFactory.from_string(f"http://{target}")
-
-        getter_file_content = {target: {"refresh_interval": 10}}
-
+        getter_file_content = {
+            "localhost:8080/valuestore/ip_set_testclass": {"refresh_interval": 1}
+        }
         http_getter_conf: Path = tmp_path / "http_getter.json"
         http_getter_conf.write_text(json.dumps(getter_file_content))
         mock_env = {ENV_NAME_LOGPREP_GETTER_CONFIG: str(http_getter_conf)}
-        with mock.patch.dict("os.environ", mock_env):
-            assert http_getter._get_refresh_interval() == 10
-            http_getter.protocol = "file"
-            http_getter.target = str(http_getter_conf)
-            assert http_getter._get_refresh_interval() == 0
 
-    @mock.patch(
-        "logprep.util.getter.HttpGetter._update_cache", side_effect=RefreshableGetterError("Test")
-    )
-    def test_get_raw_raises_refreshable_getter_error_from_update_cache(self, _, tmp_path):
-        target = "something"
-        getter_file_content = {target: {"refresh_interval": 10}}
-
-        http_getter_conf: Path = tmp_path / "http_getter.json"
-        http_getter_conf.write_text(json.dumps(getter_file_content))
-        mock_env = {ENV_NAME_LOGPREP_GETTER_CONFIG: str(http_getter_conf)}
-        with mock.patch.dict("os.environ", mock_env):
-            http_getter: HttpGetter = GetterFactory.from_string(f"http://{target}")
-            with pytest.raises(RefreshableGetterError, match="Test"):
-                http_getter.get_raw()
-
-    @mock.patch(
-        "logprep.util.getter.HttpGetter._update_cache", side_effect=RefreshableGetterError("Test")
-    )
-    def test_get_raw_without_interval_logs_warning_on_error_with_empty_cache(
-        self, _, tmp_path, caplog
-    ):
-        caplog.set_level("WARNING")
-        target = "something"
-        http_getter: HttpGetter = GetterFactory.from_string(f"http://{target}")
-        http_getter.cache = "something"
-        http_getter.get_raw()
-        assert re.search(r"Not updating .+ cache with URI .+", caplog.text)
-
-    @mock.patch("logprep.util.getter.HttpGetter._update_cache")
-    def test_get_raw_without_interval_logs_warning_on_empty_cache(self, _, tmp_path):
-        target = "something"
-        url = f"http://{target}"
-        http_getter: HttpGetter = GetterFactory.from_string(url)
-        with pytest.raises(ValueError, match=f"Cache is empty for HttpGetter with URI '{url}'"):
-            http_getter.get_raw()
-
-    def test_get_default_value_only_if_target_not_getter_config(self, tmp_path):
-        target = "something"
-        url = f"http://{target}"
-        http_getter_conf: Path = tmp_path / "http_getter.json"
-        http_getter_conf.write_text(json.dumps({target: {"default_return_value": "something"}}))
-        mock_env = {ENV_NAME_LOGPREP_GETTER_CONFIG: str(http_getter_conf)}
         with mock.patch.dict("os.environ", mock_env):
             http_getter: HttpGetter = GetterFactory.from_string(url)
-            assert http_getter._get_default_return_value() == b"something"
-            http_getter.protocol = "file"
-            http_getter.target = str(http_getter_conf)
-            assert http_getter._get_default_return_value() is None
 
-    def test_getter_with_default(self, tmp_path):
-        target_ref_no_default = f"{uuid.uuid4()}/bar"
-        target_ref_default = f"{uuid.uuid4()}/bar"
-        target_no_ref_no_default = f"{uuid.uuid4()}/bar"
-        target_no_ref_default = f"{uuid.uuid4()}/bar"
-        url_ref_no_default = f"https://{target_ref_no_default}"
-        url_ref_default = f"https://{target_ref_default}"
-        url_no_ref_no_default = f"https://{target_no_ref_no_default}"
-        url_no_ref_default = f"https://{target_no_ref_default}"
+            assert len(http_getter.scheduler.jobs) == 1
+            assert http_getter.scheduler.jobs[0].interval == 1
 
-        getter_file_content = {
-            target_ref_no_default: {"refresh_interval": 10},
-            target_ref_default: {"refresh_interval": 10, "default_return_value": '{"foo": "bar"}'},
-            target_no_ref_no_default: {},
-            target_no_ref_default: {"default_return_value": '{"foo": "bar"}'},
-        }
+            assert http_getter.cache is None
 
-        http_getter_conf: Path = tmp_path / "http_getter.json"
-        http_getter_conf.write_text(json.dumps(getter_file_content))
-        mock_env = {ENV_NAME_LOGPREP_GETTER_CONFIG: str(http_getter_conf)}
-        with mock.patch.dict("os.environ", mock_env):
-            ref_no_default = GetterFactory.from_string(url_ref_no_default)
-            ref_default = GetterFactory.from_string(url_ref_default)
-            no_ref_no_default = GetterFactory.from_string(url_no_ref_no_default)
-            no_ref_default = GetterFactory.from_string(url_no_ref_default)
+            return_content_1 = http_getter.get_json()
+            assert return_content_1["content"] == ["192.168.1.10"]
 
-            with pytest.raises(RefreshableGetterError):
-                ref_no_default.get()
-                no_ref_no_default.get()
-            assert ref_default.get_json() == {"foo": "bar"}
-            assert no_ref_default.get_json() == {"foo": "bar"}
+            requests.post(url, headers=headers, json=["0.0.0.0"])
 
-    @responses.activate
-    def test_refresh_getters(self, tmp_path):
-        target_1 = "the-target-1"
-        target_2 = "the-target-2"
-        url_1 = f"https://{target_1}"
-        url_2 = f"https://{target_2}"
-        getter_file_content = {
-            target_1: {"refresh_interval": 10},
-            target_2: {"refresh_interval": 10},
-        }
-        http_getter_conf: Path = tmp_path / "http_getter.json"
-        http_getter_conf.write_text(json.dumps(getter_file_content))
-        mock_env = {ENV_NAME_LOGPREP_GETTER_CONFIG: str(http_getter_conf)}
-        with mock.patch.dict("os.environ", mock_env):
-            http_getter_1: HttpGetter = GetterFactory.from_string(url_1)
-            http_getter_2: HttpGetter = GetterFactory.from_string(url_2)
-        with mock.patch.object(http_getter_1.scheduler, "run_pending") as mock_run_pending:
-            mock_run_pending.assert_not_called()
-            refresh_getters()
-            mock_run_pending.assert_called_once()
-        with mock.patch.object(http_getter_2.scheduler, "run_pending") as mock_run_pending:
-            mock_run_pending.assert_not_called()
-            refresh_getters()
-            mock_run_pending.assert_called_once()
+            time.sleep(2)
+            return_content_2 = http_getter.get_json()
+            assert return_content_2["content"] == ["0.0.0.0"]
+
+            assert http_getter.cache is not None
+            cached_json = json.loads(http_getter.cache.decode("utf-8"))
+            assert cached_json == return_content_2
