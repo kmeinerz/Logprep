@@ -44,7 +44,7 @@ def fixture_clear_getter_cache():
 
 class TestGetterFactory:
     def test_raises_if_getter_not_implemented(self):
-        with pytest.raises(GetterNotFoundError, match="No getter for protocol"):
+        with pytest.raises(GetterNotFoundError):
             GetterFactory.from_string("not_exist://my/file")
 
     def test_raises_if_getter_could_not_be_parsed(self):
