@@ -631,15 +631,12 @@ class Configuration:
 
     _config_failure: bool = field(default=False, repr=False, eq=False, init=False)
 
-    changed: bool = field(default=False, repr=False, eq=False, init=False)
-
     _current_variable_values: list = field(default=[], repr=False, eq=False, init=False)
 
     _unserializable_fields = (
         "_getter",
         "_configs",
         "_config_failure",
-        "changed",
         "_current_variable_values",
         "_scheduler",
         "_metrics",
@@ -875,7 +872,6 @@ class Configuration:
                 self._config_failure = False
             logger.info("Configuration version: %s", self.version)
             self._set_config_refresh_interval(new_config.config_refresh_interval)
-            self.changed = True
         except ConfigGetterException as error:
             self._config_failure = True
             logger.warning("Failed to load configuration: %s", error)
