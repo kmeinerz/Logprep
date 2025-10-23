@@ -39,6 +39,7 @@
 * make list comparison processor be refreshable with http getter
 * make generic adder processor be refreshable with http getter
 * make generic resolver processor be refreshable with http getter
+* add option for refreshable getters to return default values if no value could be obtained
 
 ### Improvements
 

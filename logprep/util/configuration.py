@@ -1047,7 +1047,7 @@ class Configuration:
                 TypeError,
                 ValueError,
                 InvalidRuleDefinitionError,
-                RequestException,
+                RefreshableGetterError,
             ) as error:
                 errors.append(error)
             except FileNotFoundError as error:
