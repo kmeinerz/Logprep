@@ -836,6 +836,13 @@ class Configuration:
         errors: List[Exception] = []
         try:
             new_config = Configuration.from_sources(self.config_paths)
+            if self._config_failure:
+                logger.info("Config refresh recovered from failing source")
+            self._config_failure = False
+            if new_config == self:
+                logger.info("Configuration didn't change.")
+                self._set_config_refresh_interval(new_config.config_refresh_interval)
+                return
             if new_config.config_refresh_interval is None:
                 new_config.config_refresh_interval = self.config_refresh_interval
             self._configs = new_config._configs  # pylint: disable=protected-access
