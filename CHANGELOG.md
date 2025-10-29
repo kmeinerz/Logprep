@@ -33,7 +33,7 @@
 * add network comparison processor that can match IPs with networks in CIDR notation
 
 * make http getters periodically refresh if configured in file path defined by environment variable `LOGPREP_GETTER_CONFIG`.
-* cache http getter results by utilising the etag header.
+* cache http getter results by utilizing the etag header.
 * add per-target (i.e. `localhost:1234/foo`) callbacks to http getters that are called when getters are refreshed with new data.
 * make config reload detect changes in http getters.
 * make list comparison processor be refreshable with http getter
