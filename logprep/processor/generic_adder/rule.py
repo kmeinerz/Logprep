@@ -157,11 +157,6 @@ class GenericAdderRule(FieldManagerRule):
         def __attrs_post_init__(self):
             self._base_add = copy.deepcopy(self.add)
 
-            for add_file in self.add_from_file:  # pylint: disable=not-an-iterable
-                getter = GetterFactory.from_string(add_file)
-                if isinstance(getter, RefreshableGetter):
-                    getter.add_callback(self._refresh_add)
-
             if self.add_from_file:
                 for add_file in self.add_from_file:  # pylint: disable=not-an-iterable
                     getter = GetterFactory.from_string(add_file)
