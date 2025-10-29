@@ -146,7 +146,7 @@ class GenericAdderRule(FieldManagerRule):
         In that case, only one file must exist."""
 
         _base_add: dict = field(default={}, eq=False)
-        """Stores original add fields for future refreshes of getters"""
+        """Stores original add fields (as provided in the config) for future refreshes of getters"""
 
         # pylint: enable=anomalous-backslash-in-string
 
