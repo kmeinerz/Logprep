@@ -108,7 +108,7 @@ class Getter(ABC):
         return result
 
     def get_list(self) -> list:
-        """gets list and fails otherwise"""
+        """Gets list and fails otherwise"""
         result = self.get_collection()
         if not isinstance(result, list):
             raise ValueError("Value is not a list")
