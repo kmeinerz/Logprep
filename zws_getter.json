@@ -1,0 +1,4 @@
+{
+    "target": "localhost:8080/valuestore/ip_set_testclass",
+    "refresh_interval": 1
+}

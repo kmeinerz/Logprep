@@ -60,4 +60,5 @@
         "wineventlog",
         "winlog"
     ],
+    "ansible.python.interpreterPath": "/home/kmeinerz/forked/Logprep/.venv/bin/python",
 }

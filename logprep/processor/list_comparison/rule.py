@@ -121,7 +121,7 @@ class ListComparisonRule(FieldManagerRule):
             http_getter.add_callback(self._update_compare_sets_via_http, http_getter, list_path)
 
     def _update_compare_sets_via_http(self, http_getter, list_path):
-        # compare_elements = http_getter.get().splitlines() ### This line did not work with zws
+        # compare_elements = http_getter.get().splitlines()  ### This line did not work with zws
         compare_elements = json.loads(http_getter.get())["content"]
         file_elem_tuples = (elem for elem in compare_elements if not elem.startswith("#"))
         self._compare_sets.update({list_path: set(file_elem_tuples)})
