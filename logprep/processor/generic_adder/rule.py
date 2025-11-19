@@ -82,6 +82,7 @@ In the following example two files are being used, but only the first existing f
 # pylint: enable=anomalous-backslash-in-string
 
 import copy
+
 from attrs import define, field, validators
 
 from logprep.processor.base.rule import InvalidRuleDefinitionError

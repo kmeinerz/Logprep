@@ -10,6 +10,9 @@ from unittest.mock import patch
 
 import responses
 
+from logprep.util.defaults import ENV_NAME_LOGPREP_GETTER_CONFIG
+from logprep.util.getter import HttpGetter
+
 from logprep.factory import Factory
 from logprep.processor.base.exceptions import FieldExistsWarning
 from logprep.processor.generic_resolver.processor import GenericResolver

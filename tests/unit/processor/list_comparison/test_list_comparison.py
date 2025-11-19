@@ -1,10 +1,13 @@
+import json
+import os
+import time
+from pathlib import Path
+from unittest import mock
+
 # pylint: disable=missing-docstring
 # pylint: disable=protected-access
 import pytest
-
-import json
-from pathlib import Path
-from unittest import mock
+import requests
 import responses
 
 from logprep.factory import Factory
@@ -12,6 +15,8 @@ from logprep.processor.base.exceptions import FieldExistsWarning
 from logprep.util.defaults import ENV_NAME_LOGPREP_GETTER_CONFIG
 from logprep.util.getter import HttpGetter
 from tests.unit.processor.base import BaseProcessorTestCase
+
+os.environ["LOGPREP_CREDENTIALS_FILE"] = "examples/exampledata/config/credentials.yml"
 
 
 class TestListComparison(BaseProcessorTestCase):
@@ -398,3 +403,69 @@ Heinz
         processor.setup()
         processor.process(document)
         assert document == expected, testcase
+
+    def test_refreshable_getter_with_zws(self, tmp_path):
+
+        url = "http://localhost:8080/valuestore/ip_set_testclass"
+        headers = {
+            "Content-Type": "application/json",
+            "Authentication": "Bearer DEV-API-WRITE-KEY-954700505u679",
+        }
+
+        base_url = "http://localhost:8080"
+        target = "/valuestore/ip_set_testclass"
+
+        response = requests.post(url, headers=headers, json=["192.168.1.10"])
+
+        rule_dict = {
+            "filter": "user",
+            "list_comparison": {
+                "source_fields": ["user"],
+                "target_field": "onboarded",
+                "list_file_paths": ["valuestore/ip_set_testclass"],  # must match filename in URL
+            },
+            "description": "",
+        }
+
+        config = {
+            "type": "list_comparison",
+            "rules": [],
+            "list_search_base_path": f"{base_url}/${{LOGPREP_LIST}}",
+        }
+
+        HttpGetter._shared.clear()
+
+        getter_file_content = {
+            "localhost:8080/valuestore/ip_set_testclass": {"refresh_interval": 1}
+        }
+        http_getter_conf: Path = tmp_path / "http_getter.json"
+        http_getter_conf.write_text(json.dumps(getter_file_content))
+
+        mock_env = {ENV_NAME_LOGPREP_GETTER_CONFIG: str(http_getter_conf)}
+        with mock.patch.dict("os.environ", mock_env):
+            processor = Factory.create({"custom_lister": config})
+            rule = processor.rule_class.create_from_dict(rule_dict)
+            processor._rule_tree.add_rule(rule)
+            processor.setup()
+
+            document = {"user": "192.168.1.10"}
+            processor.process(document)
+            expected = {
+                "user": "192.168.1.10",
+                "onboarded": {"in_list": ["valuestore/ip_set_testclass"]},
+            }
+            assert document == expected
+
+            response = requests.post(url, headers=headers, json=["0.0.0.0"])
+            time.sleep(1)
+            HttpGetter(
+                target="localhost:8080/valuestore/ip_set_testclass", protocol="http"
+            ).scheduler.run_all()
+
+            document = {"user": "192.168.1.10"}
+            processor.process(document)
+            expected = {
+                "user": "192.168.1.10",
+                "onboarded": {"not_in_list": ["valuestore/ip_set_testclass"]},
+            }
+            assert document == expected

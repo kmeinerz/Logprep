@@ -21,65 +21,16 @@ metrics:
   port: 8001
 
 pipeline:
-  - labelername:
-      type: labeler
-      schema: examples/exampledata/rules/labeler/schema.json
-      include_parent_labels: true
+  - listcomparisonname:
+      type: list_comparison
       rules:
-        - examples/exampledata/rules/labeler/rules
-
-  - dissector:
-      type: dissector
-      rules:
-        - examples/exampledata/rules/dissector/rules
-
-  - dropper:
-      type: dropper
-      rules:
-        - examples/exampledata/rules/dropper/rules
-        - filter: "test_dropper"
-          dropper:
-            drop:
-              - drop_me
-          description: "..."
-
-  - pre_detector:
-      type: pre_detector
-      rules:
-        - examples/exampledata/rules/pre_detector/rules
-      outputs:
-        - opensearch: sre
-      tree_config: examples/exampledata/rules/pre_detector/tree_config.json
-      alert_ip_list_path: examples/exampledata/rules/pre_detector/alert_ips.yml
-
-  - amides:
-      type: amides
-      rules:
-        - examples/exampledata/rules/amides/rules
-      models_path: examples/exampledata/models/model.zip
-      num_rule_attributions: 10
-      max_cache_entries: 1000000
-      decision_threshold: 0.32
-
-  - pseudonymizer:
-      type: pseudonymizer
-      pubkey_analyst: examples/exampledata/rules/pseudonymizer/example_analyst_pub.pem
-      pubkey_depseudo: examples/exampledata/rules/pseudonymizer/example_depseudo_pub.pem
-      regex_mapping: examples/exampledata/rules/pseudonymizer/regex_mapping.yml
-      hash_salt: a_secret_tasty_ingredient
-      outputs:
-        - opensearch: pseudonyms
-      rules:
-        - examples/exampledata/rules/pseudonymizer/rules/
-      max_cached_pseudonyms: 1000000
-
-  - calculator:
-      type: calculator
-      rules:
-        - filter: "test_label: execute"
-          calculator:
-            target_field: "calculation"
-            calc: "1 + 1"
+        - filter: "user"
+          list_comparison:
+            source_fields: ["user"]
+            target_field: "onboarded"
+            list_file_paths:
+              - valuestore/ip_set_testclass
+      list_search_base_path: "http://localhost:8080/valuestore/ip_set_testclass/"
 
 input:
   kafka:

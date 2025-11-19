@@ -11,12 +11,12 @@ from functools import cached_property
 from importlib.metadata import version
 from pathlib import Path
 from string import Template
-from typing import Tuple, ClassVar
+from typing import ClassVar, Tuple
 from urllib.parse import urlparse
 
 import requests
-from requests import Response
 from attrs import define, field, validators
+from requests import Response
 from schedule import Scheduler
 
 from logprep.abc.exceptions import LogprepException
@@ -26,7 +26,10 @@ from logprep.util.credentials import (
     CredentialsEnvNotFoundError,
     CredentialsFactory,
 )
-from logprep.util.defaults import ENV_NAME_LOGPREP_CREDENTIALS_FILE, ENV_NAME_LOGPREP_GETTER_CONFIG
+from logprep.util.defaults import (
+    ENV_NAME_LOGPREP_CREDENTIALS_FILE,
+    ENV_NAME_LOGPREP_GETTER_CONFIG,
+)
 
 
 class GetterNotFoundError(LogprepException):

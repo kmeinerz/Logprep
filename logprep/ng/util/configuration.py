@@ -224,7 +224,11 @@ from logprep.ng.util.defaults import (
 from logprep.processor.base.exceptions import InvalidRuleDefinitionError
 from logprep.util import http
 from logprep.util.credentials import CredentialsEnvNotFoundError, CredentialsFactory
-from logprep.util.getter import GetterFactory, GetterNotFoundError, RefreshableGetterError
+from logprep.util.getter import (
+    GetterFactory,
+    GetterNotFoundError,
+    RefreshableGetterError,
+)
 from logprep.util.rule_loader import RuleLoader
 
 logger = logging.getLogger("Config")

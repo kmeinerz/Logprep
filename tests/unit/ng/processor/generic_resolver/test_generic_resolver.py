@@ -10,6 +10,9 @@ from unittest.mock import patch
 
 import responses
 
+from logprep.util.defaults import ENV_NAME_LOGPREP_GETTER_CONFIG
+from logprep.util.getter import HttpGetter
+
 from logprep.factory import Factory
 from logprep.ng.event.log_event import LogEvent
 from logprep.ng.processor.generic_resolver.processor import GenericResolver

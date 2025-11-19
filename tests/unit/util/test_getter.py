@@ -4,17 +4,19 @@
 # pylint: disable=unspecified-encoding
 # pylint: disable=protected-access
 import json
+import os
 import re
-import sys
+import time
 import uuid
 from datetime import datetime, timedelta
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import cast
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 import responses
 from requests.exceptions import HTTPError
 from responses import matchers
@@ -37,6 +39,7 @@ from logprep.util.getter import (
 )
 
 yaml = YAML(pure=True, typ="safe")
+os.environ["LOGPREP_CREDENTIALS_FILE"] = "examples/exampledata/config/credentials.yml"
 
 
 @pytest.fixture(autouse=True)
@@ -1474,3 +1477,43 @@ class TestHttpGetter:
             mock_run_pending.assert_not_called()
             refresh_getters()
             mock_run_pending.assert_called_once()
+
+    def test_http_getter_with_local_server(self, tmp_path):
+        target = "/valuestore/ip_set_testclass"
+        base_url = "http://localhost:8080"
+        url = f"{base_url}{target}"
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authentication": "Bearer DEV-API-WRITE-KEY-954700505u679",
+        }
+
+        requests.post(url, headers=headers, json=["192.168.1.10"])
+
+        getter_file_content = {
+            "localhost:8080/valuestore/ip_set_testclass": {"refresh_interval": 1}
+        }
+        http_getter_conf: Path = tmp_path / "http_getter.json"
+        http_getter_conf.write_text(json.dumps(getter_file_content))
+        mock_env = {ENV_NAME_LOGPREP_GETTER_CONFIG: str(http_getter_conf)}
+
+        with mock.patch.dict("os.environ", mock_env):
+            http_getter: HttpGetter = GetterFactory.from_string(url)
+
+            assert len(http_getter.scheduler.jobs) == 1
+            assert http_getter.scheduler.jobs[0].interval == 1
+
+            assert http_getter.cache is None
+
+            return_content_1 = http_getter.get_json()
+            assert return_content_1["content"] == ["192.168.1.10"]
+
+            requests.post(url, headers=headers, json=["0.0.0.0"])
+
+            time.sleep(2)
+            return_content_2 = http_getter.get_json()
+            assert return_content_2["content"] == ["0.0.0.0"]
+
+            assert http_getter.cache is not None
+            cached_json = json.loads(http_getter.cache.decode("utf-8"))
+            assert cached_json == return_content_2
