@@ -25,7 +25,10 @@ from logprep.abc.output import (
 )
 from logprep.abc.processor import Processor, ProcessorResult
 from logprep.factory import Factory
-from logprep.framework.pipeline import Pipeline, PipelineResult  # type: ignore[attr-defined]
+from logprep.framework.pipeline import (  # type: ignore[attr-defined]
+    Pipeline,
+    PipelineResult,
+)
 from logprep.processor.base.exceptions import (
     FieldExistsWarning,
     ProcessingCriticalError,
@@ -554,7 +557,7 @@ class TestPipeline(ConfigurationForTests):
             self.pipeline.process_pipeline()
         mock_task.assert_called()
 
-    def test_process_pipeline_refreshed_http_getters(self, _, tmp_path):
+    def test_process_pipeline_refreshed_http_getters(self, _):
         self.pipeline._get_event = mock.MagicMock()
         self.pipeline._store_event = mock.MagicMock()
         self.pipeline.process_event = mock.MagicMock()

@@ -224,7 +224,11 @@ from logprep.ng.util.defaults import (
 from logprep.processor.base.exceptions import InvalidRuleDefinitionError
 from logprep.util import http
 from logprep.util.credentials import CredentialsEnvNotFoundError, CredentialsFactory
-from logprep.util.getter import GetterFactory, GetterNotFoundError, RefreshableGetterError
+from logprep.util.getter import (
+    GetterFactory,
+    GetterNotFoundError,
+    RefreshableGetterError,
+)
 from logprep.util.rule_loader import RuleLoader
 
 logger = logging.getLogger("Config")
@@ -836,13 +840,6 @@ class Configuration:
         errors: List[Exception] = []
         try:
             new_config = Configuration.from_sources(self.config_paths)
-            if self._config_failure:
-                logger.info("Config refresh recovered from failing source")
-            self._config_failure = False
-            if new_config == self:
-                logger.info("Configuration didn't change.")
-                self._set_config_refresh_interval(new_config.config_refresh_interval)
-                return
             if new_config.config_refresh_interval is None:
                 new_config.config_refresh_interval = self.config_refresh_interval
             self._configs = new_config._configs  # pylint: disable=protected-access

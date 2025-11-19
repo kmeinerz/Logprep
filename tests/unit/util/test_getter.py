@@ -10,17 +10,16 @@ import uuid
 from datetime import datetime, timedelta
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import cast
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 import responses
-from requests.exceptions import HTTPError
 from responses import matchers
 from responses.registries import OrderedRegistry
-from requests.exceptions import HTTPError
-from ruamel.yaml import YAML, YAMLError
+from ruamel.yaml import YAML
 
 from logprep.util.credentials import Credentials, CredentialsEnvNotFoundError
 from logprep.util.defaults import (
@@ -32,9 +31,8 @@ from logprep.util.getter import (
     GetterFactory,
     GetterNotFoundError,
     HttpGetter,
-    RefreshableGetterError,
     RefreshableGetter,
-    refresh_getters,
+    RefreshableGetterError,
 )
 
 yaml = YAML(pure=True, typ="safe")
